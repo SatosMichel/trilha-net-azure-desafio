@@ -22,12 +22,25 @@ public class FuncionarioController : ControllerBase
 
     private TableClient GetTableClient()
     {
-        var serviceClient = new TableServiceClient(_connectionString);
-        var tableClient = serviceClient.GetTableClient(_tableName);
+        if (string.IsNullOrWhiteSpace(_connectionString) || string.IsNullOrWhiteSpace(_tableName))
+            return null; // retornará null se não configurado
 
-        tableClient.CreateIfNotExists();
-        return tableClient;
-    }    /// <summary>
+        try
+        {
+            var serviceClient = new TableServiceClient(_connectionString);
+            var tableClient = serviceClient.GetTableClient(_tableName);
+
+            tableClient.CreateIfNotExists();
+            return tableClient;
+        }
+        catch
+        {
+            // Se houver qualquer problema com a conexão ao Table Storage, não impede a API
+            return null;
+        }
+    }
+
+    /// <summary>
     /// Obtém um funcionário específico por ID
     /// </summary>
     /// <param name="id">ID do funcionário</param>
@@ -45,7 +58,9 @@ public class FuncionarioController : ControllerBase
             return NotFound(new { message = $"Funcionário com ID {id} não encontrado." });
 
         return Ok(funcionario);
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Cria um novo funcionário
     /// </summary>
     /// <param name="funcionario">Dados do funcionário a ser criado</param>
@@ -69,8 +84,11 @@ public class FuncionarioController : ControllerBase
             _context.SaveChanges();
 
             var tableClient = GetTableClient();
-            var funcionarioLog = new FuncionarioLog(funcionario, TipoAcao.Inclusao, funcionario.Departamento, Guid.NewGuid().ToString());
-            tableClient.UpsertEntity(funcionarioLog);
+            if (tableClient != null)
+            {
+                var funcionarioLog = new FuncionarioLog(funcionario, TipoAcao.Inclusao, funcionario.Departamento, Guid.NewGuid().ToString());
+                tableClient.UpsertEntity(funcionarioLog);
+            }
 
             return CreatedAtAction(nameof(ObterPorId), new { id = funcionario.Id }, funcionario);
         }
@@ -78,7 +96,9 @@ public class FuncionarioController : ControllerBase
         {
             return StatusCode(500, new { message = "Erro interno do servidor.", details = ex.Message });
         }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Atualiza um funcionário existente
     /// </summary>
     /// <param name="id">ID do funcionário</param>
@@ -115,8 +135,11 @@ public class FuncionarioController : ControllerBase
             _context.SaveChanges();
 
             var tableClient = GetTableClient();
-            var funcionarioLog = new FuncionarioLog(funcionarioBanco, TipoAcao.Atualizacao, funcionarioBanco.Departamento, Guid.NewGuid().ToString());
-            tableClient.UpsertEntity(funcionarioLog);
+            if (tableClient != null)
+            {
+                var funcionarioLog = new FuncionarioLog(funcionarioBanco, TipoAcao.Atualizacao, funcionarioBanco.Departamento, Guid.NewGuid().ToString());
+                tableClient.UpsertEntity(funcionarioLog);
+            }
 
             return Ok(funcionarioBanco);
         }
@@ -124,7 +147,9 @@ public class FuncionarioController : ControllerBase
         {
             return StatusCode(500, new { message = "Erro interno do servidor.", details = ex.Message });
         }
-    }    /// <summary>
+    }
+
+    /// <summary>
     /// Remove um funcionário
     /// </summary>
     /// <param name="id">ID do funcionário</param>
@@ -147,8 +172,11 @@ public class FuncionarioController : ControllerBase
             _context.SaveChanges();
 
             var tableClient = GetTableClient();
-            var funcionarioLog = new FuncionarioLog(funcionarioBanco, TipoAcao.Remocao, funcionarioBanco.Departamento, Guid.NewGuid().ToString());
-            tableClient.UpsertEntity(funcionarioLog);
+            if (tableClient != null)
+            {
+                var funcionarioLog = new FuncionarioLog(funcionarioBanco, TipoAcao.Remocao, funcionarioBanco.Departamento, Guid.NewGuid().ToString());
+                tableClient.UpsertEntity(funcionarioLog);
+            }
 
             return NoContent();
         }

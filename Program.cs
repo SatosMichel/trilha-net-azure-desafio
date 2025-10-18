@@ -44,6 +44,23 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
+// Aplicar migrações automaticamente ao iniciar (se as credenciais permitirem)
+using (var scope = app.Services.CreateScope())
+{
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<RHContext>();
+        db.Database.Migrate();
+        logger.LogInformation("Banco de dados atualizado com sucesso usando migrações EF Core.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Falha ao aplicar migrações do banco de dados no startup.");
+        // Não interrompe a inicialização; permite que a aplicação suba para que o usuário possa inspecionar logs
+    }
+}
+
 // Swagger
 app.UseSwagger();
 app.UseSwaggerUI(c =>
