@@ -27,72 +27,134 @@ public class FuncionarioController : ControllerBase
 
         tableClient.CreateIfNotExists();
         return tableClient;
-    }
-
+    }    /// <summary>
+    /// Obtém um funcionário específico por ID
+    /// </summary>
+    /// <param name="id">ID do funcionário</param>
+    /// <returns>Dados do funcionário</returns>
+    /// <response code="200">Funcionário encontrado</response>
+    /// <response code="404">Funcionário não encontrado</response>
     [HttpGet("{id}")]
+    [ProducesResponseType(typeof(Funcionario), 200)]
+    [ProducesResponseType(404)]
     public IActionResult ObterPorId(int id)
     {
         var funcionario = _context.Funcionarios.Find(id);
 
         if (funcionario == null)
-            return NotFound();
+            return NotFound(new { message = $"Funcionário com ID {id} não encontrado." });
 
         return Ok(funcionario);
-    }
-
+    }    /// <summary>
+    /// Cria um novo funcionário
+    /// </summary>
+    /// <param name="funcionario">Dados do funcionário a ser criado</param>
+    /// <returns>Funcionário criado</returns>
+    /// <response code="201">Funcionário criado com sucesso</response>
+    /// <response code="400">Dados inválidos</response>
     [HttpPost]
-    public IActionResult Criar(Funcionario funcionario)
+    [ProducesResponseType(typeof(Funcionario), 201)]
+    [ProducesResponseType(400)]
+    public IActionResult Criar([FromBody] Funcionario funcionario)
     {
-        _context.Funcionarios.Add(funcionario);
-        // TODO: Chamar o método SaveChanges do _context para salvar no Banco SQL
+        if (funcionario == null)
+            return BadRequest(new { message = "Dados do funcionário são obrigatórios." });
 
-        var tableClient = GetTableClient();
-        var funcionarioLog = new FuncionarioLog(funcionario, TipoAcao.Inclusao, funcionario.Departamento, Guid.NewGuid().ToString());
+        if (string.IsNullOrEmpty(funcionario.Nome))
+            return BadRequest(new { message = "Nome do funcionário é obrigatório." });
 
-        // TODO: Chamar o método UpsertEntity para salvar no Azure Table
+        try
+        {
+            _context.Funcionarios.Add(funcionario);
+            _context.SaveChanges();
 
-        return CreatedAtAction(nameof(ObterPorId), new { id = funcionario.Id }, funcionario);
-    }
+            var tableClient = GetTableClient();
+            var funcionarioLog = new FuncionarioLog(funcionario, TipoAcao.Inclusao, funcionario.Departamento, Guid.NewGuid().ToString());
+            tableClient.UpsertEntity(funcionarioLog);
 
+            return CreatedAtAction(nameof(ObterPorId), new { id = funcionario.Id }, funcionario);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Erro interno do servidor.", details = ex.Message });
+        }
+    }    /// <summary>
+    /// Atualiza um funcionário existente
+    /// </summary>
+    /// <param name="id">ID do funcionário</param>
+    /// <param name="funcionario">Dados atualizados do funcionário</param>
+    /// <returns>Funcionário atualizado</returns>
+    /// <response code="200">Funcionário atualizado com sucesso</response>
+    /// <response code="400">Dados inválidos</response>
+    /// <response code="404">Funcionário não encontrado</response>
     [HttpPut("{id}")]
-    public IActionResult Atualizar(int id, Funcionario funcionario)
+    [ProducesResponseType(typeof(Funcionario), 200)]
+    [ProducesResponseType(400)]
+    [ProducesResponseType(404)]
+    public IActionResult Atualizar(int id, [FromBody] Funcionario funcionario)
     {
+        if (funcionario == null)
+            return BadRequest(new { message = "Dados do funcionário são obrigatórios." });
+
         var funcionarioBanco = _context.Funcionarios.Find(id);
 
         if (funcionarioBanco == null)
-            return NotFound();
+            return NotFound(new { message = $"Funcionário com ID {id} não encontrado." });
 
-        funcionarioBanco.Nome = funcionario.Nome;
-        funcionarioBanco.Endereco = funcionario.Endereco;
-        // TODO: As propriedades estão incompletas
+        try
+        {
+            funcionarioBanco.Nome = funcionario.Nome;
+            funcionarioBanco.Endereco = funcionario.Endereco;
+            funcionarioBanco.Ramal = funcionario.Ramal;
+            funcionarioBanco.EmailProfissional = funcionario.EmailProfissional;
+            funcionarioBanco.Departamento = funcionario.Departamento;
+            funcionarioBanco.Salario = funcionario.Salario;
+            funcionarioBanco.DataAdmissao = funcionario.DataAdmissao;
 
-        // TODO: Chamar o método de Update do _context.Funcionarios para salvar no Banco SQL
-        _context.SaveChanges();
+            _context.Funcionarios.Update(funcionarioBanco);
+            _context.SaveChanges();
 
-        var tableClient = GetTableClient();
-        var funcionarioLog = new FuncionarioLog(funcionarioBanco, TipoAcao.Atualizacao, funcionarioBanco.Departamento, Guid.NewGuid().ToString());
+            var tableClient = GetTableClient();
+            var funcionarioLog = new FuncionarioLog(funcionarioBanco, TipoAcao.Atualizacao, funcionarioBanco.Departamento, Guid.NewGuid().ToString());
+            tableClient.UpsertEntity(funcionarioLog);
 
-        // TODO: Chamar o método UpsertEntity para salvar no Azure Table
-
-        return Ok();
-    }
-
+            return Ok(funcionarioBanco);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Erro interno do servidor.", details = ex.Message });
+        }
+    }    /// <summary>
+    /// Remove um funcionário
+    /// </summary>
+    /// <param name="id">ID do funcionário</param>
+    /// <returns>Confirmação de remoção</returns>
+    /// <response code="204">Funcionário removido com sucesso</response>
+    /// <response code="404">Funcionário não encontrado</response>
     [HttpDelete("{id}")]
+    [ProducesResponseType(204)]
+    [ProducesResponseType(404)]
     public IActionResult Deletar(int id)
     {
         var funcionarioBanco = _context.Funcionarios.Find(id);
 
         if (funcionarioBanco == null)
-            return NotFound();
+            return NotFound(new { message = $"Funcionário com ID {id} não encontrado." });
 
-        // TODO: Chamar o método de Remove do _context.Funcionarios para salvar no Banco SQL
-        _context.SaveChanges();
+        try
+        {
+            _context.Funcionarios.Remove(funcionarioBanco);
+            _context.SaveChanges();
 
-        var tableClient = GetTableClient();
-        var funcionarioLog = new FuncionarioLog(funcionarioBanco, TipoAcao.Remocao, funcionarioBanco.Departamento, Guid.NewGuid().ToString());
+            var tableClient = GetTableClient();
+            var funcionarioLog = new FuncionarioLog(funcionarioBanco, TipoAcao.Remocao, funcionarioBanco.Departamento, Guid.NewGuid().ToString());
+            tableClient.UpsertEntity(funcionarioLog);
 
-        // TODO: Chamar o método UpsertEntity para salvar no Azure Table
-
-        return NoContent();
+            return NoContent();
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = "Erro interno do servidor.", details = ex.Message });
+        }
     }
 }

@@ -1,0 +1,9 @@
+{
+  "nome": "João Silva",
+  "endereco": "Rua das Flores, 123 - São Paulo, SP",
+  "ramal": "1234",
+  "emailProfissional": "joao.silva@empresa.com",
+  "departamento": "TI",
+  "salario": 5000.00,
+  "dataAdmissao": "2023-01-15T08:00:00.000Z"
+}
